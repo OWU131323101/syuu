@@ -122,7 +122,7 @@ def show():
                 })
                 save_json(FILE, st.session_state.companies)
                 st.success("追加しました。")
-                st.experimental_rerun()
+                st.rerun()
 
     # --- DataFrame 作成 ---
     df = pd.DataFrame(st.session_state.companies)
@@ -179,13 +179,13 @@ def show():
                     st.session_state.companies[idx]["メモ"] = new_memo
                     save_json(FILE, st.session_state.companies)
                     st.success("更新しました。")
-                    st.experimental_rerun()
+                    st.rerun()
             with col2:
                 if st.button("削除", key=f"del_{idx}"):
                     st.session_state.companies.pop(idx)
                     save_json(FILE, st.session_state.companies)
                     st.warning("削除しました。")
-                    st.experimental_rerun()
+                    st.rerun()
             with col3:
                 if st.button("志望動機AI改善", key=f"motive_ai_{idx}"):
                     improved = _ai_improve_motive(row["企業名"], row.get("業界",""), row.get("志望動機",""), row.get("URL"))
