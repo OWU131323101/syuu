@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import random
 from .utils import load_json, save_json, try_gemini
 
 FILE = "industries.json"
@@ -45,13 +46,14 @@ def show():
     st.dataframe(df[["業界名","要約"]], use_container_width=True)
 
     st.subheader("クイズ（知識チェック）")
-    # 登録されている業界からランダムに1問
-    import random
     target = random.choice(items)
     q = f"『{target['要約']}』これはどの業界？"
+
     options = random.sample([x["業界名"] for x in items], k=min(4, len(items)))
     if target["業界名"] not in options:
         options[random.randrange(len(options))] = target["業界名"]
+    random.shuffle(options)
+
     ans = st.radio(q, options, index=0)
     if st.button("回答する"):
         if ans == target["業界名"]:

@@ -2,7 +2,7 @@ import streamlit as st
 import random
 import json
 from pathlib import Path
-from openai import OpenAI
+import google.generativeai as genai
 
 DATA_FILE = Path("interview_questions.json")
 
@@ -18,24 +18,30 @@ def save_json(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# Gemini（OpenAI API）で例回答・目安時間取得
+# Geminiで例回答・目安時間取得
 def ask_gemini(question):
-    client = OpenAI(api_key=st.secrets["gemini_api_key"])
-    prompt = (
-        f"以下の質問に対して、目安回答時間（分）と模範回答をJSON形式で返してください。\n\n"
-        f"質問: {question}\n"
-        f"返答形式: {{\"estimated_time\": \"x分\", \"example_answer\": \"模範回答\"}}"
-    )
-    response = client.chat.completions.create(
-        model="gemini-1.5-t",
-        messages=[{"role":"user","content":prompt}],
-        temperature=0.5,
-        max_tokens=300
-    )
+    if "GEMINI_API_KEY" not in st.secrets:
+        return {"estimated_time": "1-2分", "example_answer": "Gemini APIキーが設定されていません。"}
+
     try:
-        return json.loads(response.choices[0].message.content.strip())
-    except:
-        return {"estimated_time": "1-2分", "example_answer": "模範回答取得失敗"}
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        prompt = f"""
+以下の質問に対して、目安回答時間（分）と模範回答をJSON形式で返してください。
+
+質問: {question}
+
+返答形式:
+{{
+  "estimated_time": "x分",
+  "example_answer": "模範回答"
+}}
+"""
+        resp = model.generate_content(prompt)
+        return json.loads(resp.text.strip())
+    except Exception as e:
+        return {"estimated_time": "1-2分", "example_answer": f"取得失敗: {e}"}
 
 def show():
     st.title("面接対策")
@@ -98,7 +104,7 @@ def show():
                     data.pop(i)
                     save_json(DATA_FILE, data)
                     st.success(f"{i+1}番の質問を削除しました。")
-                    st.experimental_rerun()
+                    st.rerun()
             st.markdown("---")
 
     # 編集モード
@@ -115,4 +121,4 @@ def show():
             del st.session_state.edit_index
             del st.session_state.edit_question
             del st.session_state.edit_memo
-            st.experimental_rerun()
+            st.rerun()
