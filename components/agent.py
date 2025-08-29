@@ -19,7 +19,7 @@ def show():
             agents.append({"エージェント名":name,"担当者":pic,"連絡先":contact,"メモ":memo})
             save_json(FILE, agents)
             st.success("追加しました。")
-            st.experimental_rerun()
+            st.rerun()
 
     if not agents:
         st.info("登録なし")
