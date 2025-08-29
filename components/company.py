@@ -170,6 +170,10 @@ def show():
                                      key=f"edit_agent_{idx}")
             new_memo = st.text_area("メモを変更", value=row.get("メモ",""), key=f"edit_memo_{idx}")
 
+            # 追加：イベントと日付
+            new_event = st.text_input("直近イベントを変更", value=row.get("直近イベント",""), key=f"edit_event_{idx}")
+            new_date = st.date_input("日付を変更", value=pd.to_datetime(row.get("日付", date.today())), key=f"edit_date_{idx}")
+
             col1,col2,col3 = st.columns(3)
             with col1:
                 if st.button("更新", key=f"update_{idx}"):
@@ -177,6 +181,8 @@ def show():
                     st.session_state.companies[idx]["志望度"] = new_priority
                     st.session_state.companies[idx]["エージェント"] = new_agent
                     st.session_state.companies[idx]["メモ"] = new_memo
+                    st.session_state.companies[idx]["直近イベント"] = new_event
+                    st.session_state.companies[idx]["日付"] = str(new_date)
                     save_json(FILE, st.session_state.companies)
                     st.success("更新しました。")
                     st.rerun()
