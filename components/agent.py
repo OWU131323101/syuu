@@ -45,10 +45,10 @@ def show():
                     agents[idx]["メモ"] = st.session_state[f"memo_{idx}"]
                     save_json(FILE, agents)
                     st.success("更新しました。")
-                    st.experimental_rerun()
+                    st.rerun()
             with col2:
                 if st.button("削除", key=f"del_{idx}"):
                     agents.pop(idx)
                     save_json(FILE, agents)
                     st.warning("削除しました。")
-                    st.experimental_rerun()
+                    st.rerun()
