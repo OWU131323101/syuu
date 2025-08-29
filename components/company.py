@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date
 from .utils import load_json, save_json, text_badge, try_gemini
 
+AGENT_FILE = "agents.json"
 FILE = "job_data.json"  # data/job_data.json
 
 def _init_state():
@@ -78,6 +79,8 @@ def show():
     _init_state()
     st.title("企業まとめ")
 
+    agent_list = [a["エージェント名"] for a in load_json(AGENT_FILE, [])]
+
     with st.expander("企業を追加", expanded=False):
         with st.form("add_company"):
             c1,c2,c3 = st.columns(3)
@@ -90,7 +93,11 @@ def show():
             with c6: date_v = st.date_input("イベント日付", value=date.today())
             motive = st.text_area("志望動機（任意）")
             c7,c8 = st.columns(2)
-            with c7: agent = st.text_input("エージェント（任意）")
+            with c7:
+                if agent_list:
+                    agent = st.selectbox("エージェント（任意）", [""] + agent_list)
+                else:
+                    agent = st.text_input("エージェント（任意）")
             with c8: url = st.text_input("企業URL（任意）")
             c9,c10 = st.columns(2)
             with c9: entry_id = st.text_input("エントリーページID", value="")
