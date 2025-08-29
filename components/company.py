@@ -3,13 +3,15 @@ import pandas as pd
 from datetime import date
 from .utils import load_json, save_json, text_badge, try_gemini
 
-AGENT_FILE = "agents.json"
 FILE = "job_data.json"  # data/job_data.json
+AGENT_FILE = "agents.json"
 
+# --- 初期化 ---
 def _init_state():
     if "companies" not in st.session_state:
         st.session_state.companies = load_json(FILE, [])
 
+# --- フィルタ ---
 def _filters(df):
     c1,c2,c3,c4 = st.columns(4)
     with c1:
@@ -27,6 +29,7 @@ def _filters(df):
     if agent:    mask &= df["エージェント"].isin(agent)
     return df[mask]
 
+# --- 志望動機AI改善 ---
 def _ai_improve_motive(name, industry, motive, url=None):
     model = try_gemini()
     if not model:
@@ -51,6 +54,7 @@ def _ai_improve_motive(name, industry, motive, url=None):
     except Exception:
         return "AI改善に失敗しました。"
 
+# --- 企業詳細取得 ---
 def _get_company_details(name, url=None):
     model = try_gemini()
     if not model:
@@ -75,12 +79,15 @@ def _get_company_details(name, url=None):
     except Exception:
         return "企業情報の取得に失敗しました。"
 
+# --- メイン表示 ---
 def show():
     _init_state()
     st.title("企業まとめ")
 
-    agent_list = [a["エージェント名"] for a in load_json(AGENT_FILE, [])]
+    # --- エージェントリスト ---
+    agents_list = [a["エージェント名"] for a in load_json(AGENT_FILE, [])]
 
+    # --- 企業追加フォーム ---
     with st.expander("企業を追加", expanded=False):
         with st.form("add_company"):
             c1,c2,c3 = st.columns(3)
@@ -94,11 +101,12 @@ def show():
             motive = st.text_area("志望動機（任意）")
             c7,c8 = st.columns(2)
             with c7:
-                if agent_list:
-                    agent = st.selectbox("エージェント（任意）", [""] + agent_list)
+                if agents_list:
+                    agent = st.selectbox("エージェント（任意）", [""] + agents_list)
                 else:
                     agent = st.text_input("エージェント（任意）")
             with c8: url = st.text_input("企業URL（任意）")
+            memo = st.text_area("メモ（任意）")  # 新規メモ欄
             c9,c10 = st.columns(2)
             with c9: entry_id = st.text_input("エントリーページID", value="")
             with c10: entry_pw = st.text_input("エントリーページPW", value="", type="password")
@@ -109,21 +117,27 @@ def show():
                     "業界": industry, "直近イベント": event, "日付": str(date_v),
                     "エージェント": agent, "URL": url,
                     "ID": entry_id, "PW": entry_pw,
-                    "志望動機": motive
+                    "志望動機": motive,
+                    "メモ": memo
                 })
                 save_json(FILE, st.session_state.companies)
                 st.success("追加しました。")
+                st.experimental_rerun()
 
-    if not st.session_state.companies:
+    # --- DataFrame 作成 ---
+    df = pd.DataFrame(st.session_state.companies)
+    if df.empty:
         st.info("まだ企業がありません。上のフォームから追加してください。")
         return
 
+    # --- フィルタ ---
     st.subheader("フィルタ")
     fdf = _filters(df)
     c1,c2 = st.columns(2)
     with c1: st.metric("登録数", len(df))
     with c2: st.metric("表示件数", len(fdf))
 
+    # --- 詳細と編集 ---
     st.subheader("詳細と編集")
     for idx, row in fdf.reset_index().iterrows():
         with st.expander(f"{row['企業名']}/{row['業界']}", expanded=False):
@@ -136,35 +150,49 @@ def show():
             st.write("### 志望動機")
             st.write(row.get("志望動機","（未記入）"))
 
+            st.write("### メモ")
+            st.write(row.get("メモ","（未記入）"))
+
             st.write("### Gemini取得企業情報")
             details = _get_company_details(row["企業名"], row.get("URL"))
             st.info(details)
 
-            # --- 選考状況と志望度の編集 ---
+            # --- 編集欄 ---
             st.write("### 編集")
-            new_status = st.selectbox("選考状況を変更", ["エントリー","説明会","一次選考","二次選考","最終選考","内定","辞退"], index=["エントリー","説明会","一次選考","二次選考","最終選考","内定","辞退"].index(row["選考状況"]), key=f"edit_status_{idx}")
-            new_priority = st.selectbox("志望度を変更", ["第一志望群","第二志望群","その他"], index=["第一志望群","第二志望群","その他"].index(row["志望度"]), key=f"edit_priority_{idx}")
+            new_status = st.selectbox("選考状況を変更", ["エントリー","説明会","一次選考","二次選考","最終選考","内定","辞退"],
+                                      index=["エントリー","説明会","一次選考","二次選考","最終選考","内定","辞退"].index(row["選考状況"]),
+                                      key=f"edit_status_{idx}")
+            new_priority = st.selectbox("志望度を変更", ["第一志望群","第二志望群","その他"],
+                                        index=["第一志望群","第二志望群","その他"].index(row["志望度"]),
+                                        key=f"edit_priority_{idx}")
+            new_agent = st.selectbox("エージェントを変更", [""] + agents_list,
+                                     index=(agents_list.index(row["エージェント"]) if row["エージェント"] in agents_list else 0),
+                                     key=f"edit_agent_{idx}")
+            new_memo = st.text_area("メモを変更", value=row.get("メモ",""), key=f"edit_memo_{idx}")
 
-            if st.button("更新", key=f"update_{idx}"):
-                st.session_state.companies[idx]["選考状況"] = new_status
-                st.session_state.companies[idx]["志望度"] = new_priority
-                save_json(FILE, st.session_state.companies)
-                st.success("更新しました。")
-
-            col1,col2 = st.columns(2)
+            col1,col2,col3 = st.columns(3)
             with col1:
+                if st.button("更新", key=f"update_{idx}"):
+                    st.session_state.companies[idx]["選考状況"] = new_status
+                    st.session_state.companies[idx]["志望度"] = new_priority
+                    st.session_state.companies[idx]["エージェント"] = new_agent
+                    st.session_state.companies[idx]["メモ"] = new_memo
+                    save_json(FILE, st.session_state.companies)
+                    st.success("更新しました。")
+                    st.experimental_rerun()
+            with col2:
                 if st.button("削除", key=f"del_{idx}"):
                     st.session_state.companies.pop(idx)
                     save_json(FILE, st.session_state.companies)
                     st.warning("削除しました。")
-                    st.rerun()
-            with col2:
+                    st.experimental_rerun()
+            with col3:
                 if st.button("志望動機AI改善", key=f"motive_ai_{idx}"):
                     improved = _ai_improve_motive(row["企業名"], row.get("業界",""), row.get("志望動機",""), row.get("URL"))
                     st.info(improved)
                     st.session_state.companies[idx]["志望動機_改善案"] = improved
                     save_json(FILE, st.session_state.companies)
-    
-    df = pd.DataFrame(st.session_state.companies)
+
+    # --- 一覧表示 ---
     st.subheader("一覧（主要項目のみ）")
     st.dataframe(df[["企業名","選考状況","志望度","業界"]], use_container_width=True)
